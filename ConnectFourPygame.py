@@ -309,6 +309,9 @@ if __name__ == '__main__':
                         draw_board(board.board)
                         turn += 1
                         turn = turn % 2
+                    else:
+                        label = myfont.render("Invalid column. Try again.", 1, BLUE)
+                        screen.blit(label, (40, 10))
 
         if turn == AI and not game_over:
             col, minimax_score = game.alpha_beta(0, board, np.NINF, np.inf, True)
