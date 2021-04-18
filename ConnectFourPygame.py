@@ -291,7 +291,7 @@ if __name__ == '__main__':
                 if turn == PLAYER:
                     posx = event.pos[0]
                     col = int(math.floor(posx / SQUARESIZE))
-                    if game.is_valid_drop(board.board[game.get_next_open_row(board.board, col)], col):
+                    try:
                         row = game.get_next_open_row(board.board, col)
                         board.drop_piece(row, col, PLAYER_PIECE)
 
@@ -309,7 +309,7 @@ if __name__ == '__main__':
                         draw_board(board.board)
                         turn += 1
                         turn = turn % 2
-                    else:
+                    except:
                         label = myfont.render("Invalid column. Try again.", 1, BLUE)
                         screen.blit(label, (40, 10))
 
