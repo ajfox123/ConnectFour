@@ -289,10 +289,11 @@ if __name__ == '__main__':
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
                 if turn == PLAYER:
+                    print(board.board)
                     posx = event.pos[0]
                     col = int(math.floor(posx / SQUARESIZE))
-                    try:
-                        row = game.get_next_open_row(board.board, col)
+                    row = game.get_next_open_row(board.board, col)
+                    if row is not None:
                         board.drop_piece(row, col, PLAYER_PIECE)
 
                         if board.utility(PLAYER_PIECE):
@@ -309,7 +310,7 @@ if __name__ == '__main__':
                         draw_board(board.board)
                         turn += 1
                         turn = turn % 2
-                    except:
+                    else:
                         label = myfont.render("Invalid column. Try again.", 1, BLUE)
                         screen.blit(label, (40, 10))
 
