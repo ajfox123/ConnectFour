@@ -289,7 +289,6 @@ if __name__ == '__main__':
             if event.type == pygame.MOUSEBUTTONDOWN:
                 pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
                 if turn == PLAYER:
-                    print(board.board)
                     posx = event.pos[0]
                     col = int(math.floor(posx / SQUARESIZE))
                     row = game.get_next_open_row(board.board, col)
