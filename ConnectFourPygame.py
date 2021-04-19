@@ -262,7 +262,7 @@ if __name__ == '__main__':
 
     board_string = '.......,.......,.......,.......,.......,.......'
     board = Board(board_string)
-    search_depth = 8
+    search_depth = 4
     game = ConnectFour(AI_PIECE, search_depth)
     game_over = False
     turn = PLAYER
