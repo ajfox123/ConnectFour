@@ -7,17 +7,22 @@ import math
 
 class Board():
     def __init__(self, board_string):
-        self.board = self.board = np.array(np.array([[i for i in x] for x in board_string.split(',')]))
+        self.board = self.board = np.array(
+            np.array([[i for i in x] for x in board_string.split(',')]))
         self.won = ''
         self.r_tokens = np.count_nonzero(self.board == 'r')
         self.y_tokens = np.count_nonzero(self.board == 'y')
         self.nrows = self.board.shape[0]
         self.ncolumns = self.board.shape[1]
         self.rows = ["".join(row) for row in self.board]
-        self.columns = ["".join(x[i] for x in self.rows[::-1]) for i in range(self.ncolumns)]
-        self.diags_tl_to_br = ["".join(self.board[::-1, :].diagonal(i)) for i in range(-self.nrows + 1, self.ncolumns)]
-        self.diags_bl_to_tr = ["".join(self.board.diagonal(i)) for i in range(self.ncolumns - 1, -self.nrows, -1)]
-        self.checks = self.rows + self.columns + self.diags_bl_to_tr + self.diags_tl_to_br
+        self.columns = ["".join(x[i] for x in self.rows[::-1])
+                        for i in range(self.ncolumns)]
+        self.diags_tl_to_br = ["".join(
+            self.board[::-1, :].diagonal(i)) for i in range(-self.nrows + 1, self.ncolumns)]
+        self.diags_bl_to_tr = ["".join(self.board.diagonal(
+            i)) for i in range(self.ncolumns - 1, -self.nrows, -1)]
+        self.checks = self.rows + self.columns + \
+            self.diags_bl_to_tr + self.diags_tl_to_br
         self.score_r = self.r_tokens
         self.score_y = self.y_tokens
         self.score_r += self.score('r')
@@ -80,7 +85,8 @@ class Board():
             self.won = piece
         old_length_left = min(tokens_left, 4)
         old_length_right = min(tokens_right, 4)
-        score_increase += score_map[new_length] - (score_map[old_length_left] + score_map[old_length_right])
+        score_increase += score_map[new_length] - \
+            (score_map[old_length_left] + score_map[old_length_right])
 
         tokens_up_right = 0
         i = 1
@@ -97,7 +103,8 @@ class Board():
             self.won = piece
         old_length_up_right = min(tokens_up_right, 4)
         old_length_down_left = min(tokens_down_left, 4)
-        score_increase += score_map[new_length] - (score_map[old_length_up_right] + score_map[old_length_down_left])
+        score_increase += score_map[new_length] - \
+            (score_map[old_length_up_right] + score_map[old_length_down_left])
 
         tokens_up_left = 0
         i = 1
@@ -114,7 +121,8 @@ class Board():
             self.won = piece
         old_length_up_left = min(tokens_up_left, 4)
         old_length_down_right = min(tokens_down_right, 4)
-        score_increase += score_map[new_length] - (score_map[old_length_up_left] + score_map[old_length_down_right])
+        score_increase += score_map[new_length] - \
+            (score_map[old_length_up_left] + score_map[old_length_down_right])
 
         if piece == 'r':
             self.score_r += score_increase
@@ -224,7 +232,8 @@ class ConnectFour():
 def draw_board(board):
     for c in range(7):
         for r in range(6):
-            pygame.draw.rect(screen, BLUE, (c * SQUARESIZE, r * SQUARESIZE + SQUARESIZE, SQUARESIZE, SQUARESIZE))
+            pygame.draw.rect(screen, BLUE, (c * SQUARESIZE, r *
+                             SQUARESIZE + SQUARESIZE, SQUARESIZE, SQUARESIZE))
             pygame.draw.circle(screen, BLACK, (int(c * SQUARESIZE + SQUARESIZE / 2),
                                                int(r * SQUARESIZE + SQUARESIZE + SQUARESIZE / 2)), RADIUS)
     for c in range(7):
@@ -247,7 +256,7 @@ if __name__ == '__main__':
     SQUARESIZE = 100
 
     width = 7 * SQUARESIZE
-    height = (6 + 1) * SQUARESIZE
+    height = 7 * SQUARESIZE
 
     size = (width, height)
 
@@ -271,30 +280,34 @@ if __name__ == '__main__':
     draw_board(board.board)
     pygame.display.update()
     myfont = pygame.font.SysFont("monospace", 75)
+    pcol = 3
 
     while not game_over:
-
+        pygame.draw.circle(
+            screen, RED, ((pcol + 0.5) * SQUARESIZE, int(SQUARESIZE / 2)), RADIUS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
 
-            if event.type == pygame.MOUSEMOTION:
+            if event.type == pygame.KEYDOWN:
                 pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
-                posx = event.pos[0]
+                if event.key == pygame.K_LEFT and pcol != 0:
+                    pcol -= 1
+                if event.key == pygame.K_RIGHT and pcol != 6:
+                    pcol += 1
                 if turn == PLAYER:
-                    pygame.draw.circle(screen, RED, (posx, int(SQUARESIZE / 2)), RADIUS)
+                    pygame.draw.circle(
+                        screen, RED, ((pcol + 0.5) * SQUARESIZE, int(SQUARESIZE / 2)), RADIUS)
 
             pygame.display.update()
 
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
                 pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
                 if turn == PLAYER:
-                    posx = event.pos[0]
-                    col = int(math.floor(posx / SQUARESIZE))
-                    row = game.get_next_open_row(board.board, col)
+                    row = game.get_next_open_row(board.board, pcol)
                     if row is not None:
-                        board.drop_piece(row, col, PLAYER_PIECE)
-
+                        board.drop_piece(row, pcol, PLAYER_PIECE)
+                        pcol = game.get_valid_locations(board.board)[0]
                         if board.utility(PLAYER_PIECE):
                             label = myfont.render("Player 1 wins!!", 1, RED)
                             screen.blit(label, (40, 10))
@@ -307,14 +320,15 @@ if __name__ == '__main__':
                             game_over = True
 
                         draw_board(board.board)
-                        turn += 1
-                        turn = turn % 2
+                        turn = (turn + 1) % 2
                     else:
-                        label = myfont.render("Invalid column. Try again.", 1, BLUE)
+                        label = myfont.render(
+                            "Invalid column. Try again.", 1, BLUE)
                         screen.blit(label, (40, 10))
 
         if turn == AI and not game_over:
-            col, minimax_score = game.alpha_beta(0, board, np.NINF, np.inf, True)
+            col, alpha_beta_score = game.alpha_beta(
+                0, board, np.NINF, np.inf, True)
             if game.is_valid_drop(board.board[game.get_next_open_row(board.board, col)], col):
                 row = game.get_next_open_row(board.board, col)
                 board.drop_piece(row, col, AI_PIECE)
