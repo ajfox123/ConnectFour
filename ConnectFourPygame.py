@@ -5,6 +5,38 @@ import pygame
 import math
 
 
+class Button:
+    """Create a button, then blit the surface in the while loop"""
+
+    def __init__(self, text,  pos, font, bg="black", feedback=""):
+        self.x, self.y = pos
+        self.font = pygame.font.SysFont("Arial", font)
+        if feedback == "":
+            self.feedback = "text"
+        else:
+            self.feedback = feedback
+        self.change_text(text, bg)
+
+    def change_text(self, text, bg="black"):
+        """Change the text when you click"""
+        self.text = self.font.render(text, 1, pygame.Color("White"))
+        self.size = self.text.get_size()
+        self.surface = pygame.Surface(self.size)
+        self.surface.fill(bg)
+        self.surface.blit(self.text, (0, 0))
+        self.rect = pygame.Rect(self.x, self.y, self.size[0], self.size[1])
+
+    def show(self):
+        screen.blit(button1.surface, (self.x, self.y))
+
+    def click(self, event):
+        x, y = pygame.mouse.get_pos()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if pygame.mouse.get_pressed()[0]:
+                if self.rect.collidepoint(x, y):
+                    self.change_text(self.feedback, bg="red")
+
+
 class Board():
     def __init__(self, board_string):
         self.board = self.board = np.array(
@@ -277,6 +309,46 @@ if __name__ == '__main__':
     turn = PLAYER
     pygame.init()
     screen = pygame.display.set_mode(size)
+
+    button1 = Button(
+        "Click here",
+        (width / 4 - SQUARESIZE / 2, 100),
+        font=30,
+        bg="navy",
+        feedback="You clicked me")
+
+    button2 = Button(
+        "Click here",
+        (width / 2 - SQUARESIZE / 2, 100),
+        font=30,
+        bg="navy",
+        feedback="You clicked me")
+
+    button3 = Button(
+        "Click here",
+        (3 * width / 4 - SQUARESIZE / 2, 100),
+        font=30,
+        bg="navy",
+        feedback="You clicked me")
+
+    start_screen = False
+    while (start_screen == False):
+        screen.fill(BLACK)
+        myfont = pygame.font.SysFont("monospace", 75)
+        nlabel = myfont.render("Welcome", 1, BLUE)
+        text_rect = nlabel.get_rect(center=(width / 2, height / 2))
+        screen.blit(nlabel, text_rect)
+        button1.show()
+        button2.show()
+        button3.show()
+        pygame.display.update()
+        for event in pygame.event.get():
+            button1.click(event)
+            button2.click(event)
+            button3.click(event)
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                start_screen = True
+
     draw_board(board.board)
     pygame.display.update()
     myfont = pygame.font.SysFont("monospace", 75)
