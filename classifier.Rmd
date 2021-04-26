@@ -1,0 +1,252 @@
+---
+title: "classifier"
+author: "Hayden Savage"
+date: "20/04/2021"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(tuneR)
+library(devtools)
+library(ggplot2)
+library(tsfeatures)
+library(stringdist)
+```
+
+```{r}
+#wave_file1 <- readWave("Spiker_box_Louis/Medium/LLRLRLRL_L.wav")
+f <- read.table("Spikerbox/RRR_h.txt")
+f[,2] = rev(f[,2])
+f2 <- read.table("Spikerbox/RbLb_b.txt")
+f2[,2] = rev(f2[,2])
+f3 <- read.table("Spikerbox/flutter_b.txt")
+f3[,2] = rev(f3[,2])
+f4 <- read.table("Spikerbox/flutterflutter_b.txt")
+f4[,2] = rev(f4[,2])
+f5 <- read.table("Spikerbox/LBR_h.txt")
+f5[,2] = rev(f5[,2])
+f6 <- read.table("Spikerbox/LLflutter_n.txt")
+f6[,2] = rev(f6[,2])
+f7 <- read.table("Spikerbox/LRB_s.txt")
+f7[,2] = rev(f7[,2])
+f8 <- read.table("Spikerbox/LRBR_s.txt") #LR for diff > 40
+f8[,2] = rev(f8[,2])
+f9 <- read.table("Spikerbox/LRbb_b.txt") #LR for diff > 60
+f9[,2] = rev(f9[,2])
+f10 <- read.table("Spikerbox/LbRb_b.txt")
+f10[,2] = rev(f10[,2])
+f11 <- read.table("Spikerbox/LBRLR_n.txt")
+f11[,2] = rev(f11[,2])
+f12 <- read.table("Spikerbox/LLR_h.txt")
+f12[,2] = rev(f12[,2])
+#wave_file1@left
+
+#f = head(f, -10000)
+#f = f[10000:length(f),]
+plot(f[,1], f[,2], type = 'l')
+mean(f[,2])
+
+plot(f2[,1], f2[,2], type = 'l')
+mean(f2[,2])
+
+plot(f3[,1], f3[,2], type = 'l')
+mean(f3[,2])
+
+plot(f4[,1], f4[,2], type = 'l')
+mean(f4[,2])
+
+plot(f5[,1], f5[,2], type = 'l')
+mean(f5[,2])
+
+plot(f6[,1], f6[,2], type = 'l')
+mean(f6[,2])
+
+plot(f7[,1], f7[,2], type = 'l')
+mean(f7[,2])
+
+plot(f8[,1], f8[,2], type = 'l')
+mean(f8[,2])
+
+plot(f9[,1], f9[,2], type = 'l')
+mean(f9[,2])
+
+plot(f10[,1], f10[,2], type = 'l')
+mean(f10[,2])
+
+plot(f11[,1], f11[,2], type = 'l')
+mean(f11[,2])
+
+plot(f12[,1], f12[,2], type = 'l')
+mean(f12[,2])
+```
+
+```{r}
+#crossings = sum(seq[1:(length(seq) - 1)] * seq[2:(length(seq))] <= 0)
+s = f[,2] - 512.0001
+s2 = f2[,2] - 512.0001
+s3 = f3[,2] - 512.0001
+s4 = f4[,2] - 512.0001
+s5 = f5[,2] - 514.45
+s6 = f6[,2] - 512.0001
+s7 = f7[,2] - 512.0001
+s8 = f8[,2] - 512.0001
+s9 = f9[,2] - 512.0001
+s10 = f10[,2] - 512.0001
+s11 = f11[,2] - 512.0001
+s12 = f12[,2] - 512.0001
+sum(s3[1:length(s3) - 1] * s3[2:(length(s3))] <= 0)
+length(s)
+```
+
+```{r, message=FALSE}
+LR_detection = function(seq) {
+  #determine number of zero crossings
+  crossings = sum(seq[1:(length(seq) - 1)] * seq[2:(length(seq))] <= 0)
+    
+  #print(crossings)
+  #print(length(seq))
+  maxval = which.max(seq)
+  minval = which.min(seq)
+  if (crossings < 52) {
+    if (maxval > minval) {
+      return ("L")
+    } else {
+      return ("R")
+    }
+  } else {
+    return ("NA")
+  }
+}
+
+LR_detection2 = function(seq) {
+  #determine number of zero crossings
+  diff = max(seq) - min(seq)
+  sdv = sd(seq)
+    
+  #print(crossings)
+  #print(length(seq))
+  maxval = which.max(seq)
+  minval = which.min(seq)
+  if (max(seq) > 28) {
+    if (maxval > minval) {
+      return ("L")
+    } else {
+      return ("R")
+    }
+  } else {
+    return ("NA")
+  }
+}
+
+
+streaming_classifier = function(file,  
+                                window_size = 10000,
+                                increment = window_size/10
+) {
+  #Y = file[,2]
+  xtime = seq_len(length(file))/10000 #file[,2]
+  predicted_labels = c()
+  final_labels = c()
+  testStat = testStat1 = testStat2 = c()
+  lower_interval = 10000
+  max_time = max(xtime)*min(window_size, 10000)
+  previous = "NA"
+  count = 0
+  testStat = testStat1 = testStat2 = testStat3 = c()
+  #simulate streaming conditions
+  while(max_time > lower_interval + window_size)
+  {
+    upper_interval = lower_interval + window_size
+    #print(upper_interval)
+    interval = file[lower_interval:upper_interval]
+    #print(interval[9250])
+    #print(lower_interval)
+    #print(upper_interval)
+    predicted = LR_detection2(interval)
+    predicted_labels = c(predicted_labels, predicted)
+    count = count + 1
+    testStat3 = c(testStat3, max(interval - min(interval)))
+    testStat = c(testStat, sd(interval))
+    testStat1 = c(testStat1, max(interval))
+    testStat2 = c(testStat2, sum(interval[1:(length(interval) - 1)] * interval[2:(length(interval))] <= 0))
+    if ((previous == 'NA') & (predicted == 'L' | predicted == 'R')) {
+      if (count > 5) {
+        final_labels = c(final_labels, predicted)
+        #print(predicted)
+        count = 0
+      }
+    }
+    previous = predicted
+    lower_interval = lower_interval + increment 
+  } ## end while
+  matplot(cbind(testStat*10, testStat1, testStat2), type="l", lty=1, ylab="statistics")
+  legend("topright", c("SD", "max", "zerocrossing"), lty=1, col=1:3)
+  plot(testStat3, type = 'l')
+  print(mean(testStat)) 
+  return (final_labels)
+}## end function
+
+```
+
+```{r}
+streaming_classifier(s2)
+```
+
+```{r}
+streaming_classifier = function(file,  
+                                window_size = 10000,
+                                increment = window_size/10
+) {
+  #Y = file[,2]
+  xtime = seq_len(length(file))/10000 #file[,2]
+  predicted_labels = c()
+  final_labels = c()
+  testStat = testStat1 = testStat2 = c()
+  lower_interval = 10000
+  max_time = max(xtime)*min(window_size, 10000)
+  previous = "NA"
+  count = 0
+  first = file[lower_interval:(lower_interval+window_size)]
+  
+  testStat = testStat1 = testStat2 = testStat3 = c()
+  #simulate streaming conditions
+  while(max_time > lower_interval + window_size)
+  {
+    upper_interval = lower_interval + window_size
+    #print(upper_interval)
+    interval = file[lower_interval:upper_interval]
+    #print(interval[9250])
+    #print(lower_interval)
+    #print(upper_interval)
+    predicted = LR_detection2(interval)
+    predicted_labels = c(predicted_labels, predicted)
+    count = count + 1
+    testStat3 = c(testStat3, max(interval - min(interval)))
+    testStat = c(testStat, sd(interval))
+    testStat1 = c(testStat1, max(interval))
+    testStat2 = c(testStat2, sum(interval[1:(length(interval) - 1)] * interval[2:(length(interval))] <= 0))
+    if ((previous == 'NA') & (predicted == 'L' | predicted == 'R')) {
+      if (count > 5) {
+        final_labels = c(final_labels, predicted)
+        #print(predicted)
+        count = 0
+      }
+    }
+    previous = predicted
+    lower_interval = lower_interval + increment 
+  } ## end while
+  matplot(cbind(testStat*10, testStat1, testStat2), type="l", lty=1, ylab="statistics")
+  legend("topright", c("SD", "max", "zerocrossing"), lty=1, col=1:3)
+  plot(testStat3, type = 'l')
+  print(mean(testStat)) 
+  return (final_labels)
+}## end function
+
+```
+
+
+
+
+
+
