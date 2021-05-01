@@ -3,38 +3,63 @@ import numpy as np
 import time
 import pygame
 import math
+import pandas as pd
+import scipy.signal
+import matplotlib.pyplot as plt
+
+# cd C:\Users\Archie\Documents\Sydney Uni\2021\S1\DATA3888\Assignments\2\ConnectFour
+
+BLUE = (0, 0, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+YELLOW = (255, 255, 0)
+
+squaresize = 100
+width = 7 * squaresize
+height = 7 * squaresize
+size = (width, height)
+
+PLAYER = 0
+AI = 1
+EMPTY = '.'
+PLAYER_PIECE = 'r'
+AI_PIECE = 'y'
+board_string = '.......,.......,.......,.......,.......,.......'
+search_depth = 2
+
+pygame.init()
+myfont = pygame.font.SysFont("monospace", 75)
+screen = pygame.display.set_mode(size)
+clock = pygame.time.Clock()
 
 
-class Button:
-    """Create a button, then blit the surface in the while loop"""
+class button():
+    def __init__(self, color, x, y, width, height, text=''):
+        self.color = color
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+        self.text = text
 
-    def __init__(self, text,  pos, font, bg="black", feedback=""):
-        self.x, self.y = pos
-        self.font = pygame.font.SysFont("Arial", font)
-        if feedback == "":
-            self.feedback = "text"
-        else:
-            self.feedback = feedback
-        self.change_text(text, bg)
+    def draw(self, win, outline=None):
+        # Call this method to draw the button on the screen
+        if outline:
+            pygame.draw.rect(win, outline, (self.x - 3, self.y - 3, self.width + 6, self.height + 6), 0)
 
-    def change_text(self, text, bg="black"):
-        """Change the text when you click"""
-        self.text = self.font.render(text, 1, pygame.Color("White"))
-        self.size = self.text.get_size()
-        self.surface = pygame.Surface(self.size)
-        self.surface.fill(bg)
-        self.surface.blit(self.text, (0, 0))
-        self.rect = pygame.Rect(self.x, self.y, self.size[0], self.size[1])
+        pygame.draw.rect(win, self.color, (self.x, self.y, self.width, self.height), 0)
 
-    def show(self):
-        screen.blit(button1.surface, (self.x, self.y))
+        if self.text != '':
+            font = pygame.font.SysFont('comicsans', 80)
+            text = font.render(self.text, 1, (0, 0, 0))
+            win.blit(text, (self.x + (self.width / 2 - text.get_width() / 2),
+                            self.y + (self.height / 2 - text.get_height() / 2)))
 
-    def click(self, event):
-        x, y = pygame.mouse.get_pos()
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if pygame.mouse.get_pressed()[0]:
-                if self.rect.collidepoint(x, y):
-                    self.change_text(self.feedback, bg="red")
+    def isOver(self, curr):
+        # Pos is the mouse position or a tuple of (x,y) coordinates
+        if curr == self:
+            return True
+        return False
 
 
 class Board():
@@ -261,125 +286,100 @@ class ConnectFour():
             return column, minv
 
 
-def draw_board(board):
-    for c in range(7):
-        for r in range(6):
-            pygame.draw.rect(screen, BLUE, (c * SQUARESIZE, r *
-                             SQUARESIZE + SQUARESIZE, SQUARESIZE, SQUARESIZE))
-            pygame.draw.circle(screen, BLACK, (int(c * SQUARESIZE + SQUARESIZE / 2),
-                                               int(r * SQUARESIZE + SQUARESIZE + SQUARESIZE / 2)), RADIUS)
-    for c in range(7):
-        for r in range(6):
-            if board[r, c] == PLAYER_PIECE:
-                pygame.draw.circle(screen, RED, (int(c * SQUARESIZE + SQUARESIZE / 2),
-                                                 height - int(r * SQUARESIZE + SQUARESIZE / 2)), RADIUS)
-            elif board[r, c] == AI_PIECE:
-                pygame.draw.circle(screen, YELLOW, (int(c * SQUARESIZE + SQUARESIZE / 2),
-                                                    height - int(r * SQUARESIZE + SQUARESIZE / 2)), RADIUS)
-    pygame.display.update()
+def game_over_screen():
+    chosen = False
+    screen.fill(BLACK)
+    nlabel = myfont.render("Play again?", 1, BLUE)
+    text_rect = nlabel.get_rect(center=(width / 2, height / 2))
+    screen.blit(nlabel, text_rect)
+    button_again = button('blue', width / 2 - 250, height - 200, 200, 100, 'Play')
+    button_again.draw(screen, 'yellow')
+    button_quit = button('red', width / 2 + 50, height - 200, 200, 100, 'Exit')
+    button_quit.draw(screen)
+    selected = button_again
+    flash = 0
+    while not chosen:
+        if pygame.time.get_ticks() % 500 == 0:
+            if flash == 0:
+                selected.draw(screen, 'black')
+                flash = 1
+            else:
+                selected.draw(screen, 'yellow')
+                flash = 0
+            pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and selected == button_again:
+                play_game()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE and selected == button_quit:
+                pygame.quit()
+                sys.exit()
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT and selected == button_again:
+                selected = button_quit
+                button_quit.draw(screen, 'yellow')
+                button_again.draw(screen, 'black')
+            elif event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT and selected == button_quit:
+                selected = button_again
+                button_again.draw(screen, 'yellow')
+                button_quit.draw(screen, 'black')
+            pygame.display.update()
 
 
-if __name__ == '__main__':
-    BLUE = (0, 0, 255)
-    BLACK = (0, 0, 0)
-    RED = (255, 0, 0)
-    YELLOW = (255, 255, 0)
-
-    SQUARESIZE = 100
-
-    width = 7 * SQUARESIZE
-    height = 7 * SQUARESIZE
-
-    size = (width, height)
-
-    RADIUS = int(SQUARESIZE / 2 - 5)
-
-    PLAYER = 0
-    AI = 1
-    EMPTY = '.'
-    PLAYER_PIECE = 'r'
-    AI_PIECE = 'y'
-    moves = 0
-
-    board_string = '.......,.......,.......,.......,.......,.......'
+def play_game():
+    screen.fill(BLACK)
+    RADIUS = int(squaresize / 2 - 5)
     board = Board(board_string)
-    search_depth = 4
     game = ConnectFour(AI_PIECE, search_depth)
     game_over = False
     turn = PLAYER
-    pygame.init()
-    screen = pygame.display.set_mode(size)
+    moves = 0
 
-    button1 = Button(
-        "Click here",
-        (width / 4 - SQUARESIZE / 2, 100),
-        font=30,
-        bg="navy",
-        feedback="You clicked me")
-
-    button2 = Button(
-        "Click here",
-        (width / 2 - SQUARESIZE / 2, 100),
-        font=30,
-        bg="navy",
-        feedback="You clicked me")
-
-    button3 = Button(
-        "Click here",
-        (3 * width / 4 - SQUARESIZE / 2, 100),
-        font=30,
-        bg="navy",
-        feedback="You clicked me")
-
-    start_screen = False
-    while (start_screen == False):
-        screen.fill(BLACK)
-        myfont = pygame.font.SysFont("monospace", 75)
-        nlabel = myfont.render("Welcome", 1, BLUE)
-        text_rect = nlabel.get_rect(center=(width / 2, height / 2))
-        screen.blit(nlabel, text_rect)
-        button1.show()
-        button2.show()
-        button3.show()
+    def draw_board(board):
+        for c in range(7):
+            for r in range(6):
+                pygame.draw.rect(screen, BLUE, (c * squaresize, r *
+                                                squaresize + squaresize, squaresize, squaresize))
+                pygame.draw.circle(screen, BLACK, (int(c * squaresize + squaresize / 2),
+                                                   int(r * squaresize + squaresize + squaresize / 2)), RADIUS)
+        for c in range(7):
+            for r in range(6):
+                if board[r, c] == PLAYER_PIECE:
+                    pygame.draw.circle(screen, RED, (int(c * squaresize + squaresize / 2),
+                                                     height - int(r * squaresize + squaresize / 2)), RADIUS)
+                elif board[r, c] == AI_PIECE:
+                    pygame.draw.circle(screen, YELLOW, (int(c * squaresize + squaresize / 2),
+                                                        height - int(r * squaresize + squaresize / 2)), RADIUS)
         pygame.display.update()
-        for event in pygame.event.get():
-            button1.click(event)
-            button2.click(event)
-            button3.click(event)
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                start_screen = True
 
     draw_board(board.board)
     pygame.display.update()
     myfont = pygame.font.SysFont("monospace", 75)
-    pcol = 3
-
+    pcol = game.get_valid_locations(board.board)[0]
     while not game_over:
+
         pygame.draw.circle(
-            screen, RED, ((pcol + 0.5) * SQUARESIZE, int(SQUARESIZE / 2)), RADIUS)
+            screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
 
             if event.type == pygame.KEYDOWN:
-                pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
+                pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
                 if event.key == pygame.K_LEFT and pcol != 0:
                     pcol -= 1
                 if event.key == pygame.K_RIGHT and pcol != 6:
                     pcol += 1
                 if turn == PLAYER:
                     pygame.draw.circle(
-                        screen, RED, ((pcol + 0.5) * SQUARESIZE, int(SQUARESIZE / 2)), RADIUS)
+                        screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
 
             pygame.display.update()
 
             if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
-                pygame.draw.rect(screen, BLACK, (0, 0, width, SQUARESIZE))
+                pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
                 if turn == PLAYER:
                     row = game.get_next_open_row(board.board, pcol)
                     if row is not None:
                         board.drop_piece(row, pcol, PLAYER_PIECE)
-                        pcol = game.get_valid_locations(board.board)[0]
                         if board.utility(PLAYER_PIECE):
                             label = myfont.render("Player 1 wins!!", 1, RED)
                             screen.blit(label, (40, 10))
@@ -399,8 +399,7 @@ if __name__ == '__main__':
                         screen.blit(label, (40, 10))
 
         if turn == AI and not game_over:
-            col, alpha_beta_score = game.alpha_beta(
-                0, board, np.NINF, np.inf, True)
+            col, alpha_beta_score = game.alpha_beta(0, board, np.NINF, np.inf, True)
             if game.is_valid_drop(board.board[game.get_next_open_row(board.board, col)], col):
                 row = game.get_next_open_row(board.board, col)
                 board.drop_piece(row, col, AI_PIECE)
@@ -418,6 +417,33 @@ if __name__ == '__main__':
                 draw_board(board.board)
                 turn += 1
                 turn = turn % 2
+                if pcol not in game.get_valid_locations(board.board):
+                    pcol = game.get_valid_locations(board.board)[0]
 
         if game_over:
-            pygame.time.wait(3000)
+            pygame.time.wait(1000)
+            game_over_screen()
+
+
+def main():
+    start_screen = True
+    while (start_screen == True):
+        screen.fill(BLACK)
+        nlabel = myfont.render("Welcome", 1, BLUE)
+        text_rect = nlabel.get_rect(center=(width / 2, height / 2))
+        screen.blit(nlabel, text_rect)
+        button_start = button('red', width / 2 - 100, height - 200, 200, 100, 'Start')
+        button_start.draw(screen, 'yellow')
+        selected = button_start
+        if button_start.isOver(selected):
+            button_start.draw(screen, 'blue')
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                start_screen = False
+
+    play_game()
+
+
+if __name__ == '__main__':
+    main()
