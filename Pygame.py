@@ -361,9 +361,16 @@ def play_game():
 
         pygame.draw.circle(
             screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                sys.exit()
+
+        turn_over = False
+
+        while not turn_over:
+
+            predicted = None
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    sys.exit()
 
             if event.type == pygame.KEYDOWN:
                 pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
@@ -384,13 +391,15 @@ def play_game():
                     if row is not None:
                         board.drop_piece(row, pcol, PLAYER_PIECE)
                         if board.utility(PLAYER_PIECE):
-                            label = myfont.render("Player 1 wins!!", 1, RED)
+                            label = myfont.render(
+                                "Player 1 wins!!", 1, RED)
                             screen.blit(label, (40, 10))
                             game_over = True
 
                         moves += 1
                         if moves == 42 and not board.utility(PLAYER_PIECE):
-                            label = myfont.render("It's a draw...", 1, BLUE)
+                            label = myfont.render(
+                                "It's a draw...", 1, BLUE)
                             screen.blit(label, (40, 10))
                             game_over = True
 
