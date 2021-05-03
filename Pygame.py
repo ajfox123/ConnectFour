@@ -6,8 +6,9 @@ import math
 import pandas as pd
 import scipy.signal
 import matplotlib.pyplot as plt
-
-# cd C:\Users\Archie\Documents\Sydney Uni\2021\S1\DATA3888\Assignments\2\ConnectFour
+import serial as ser
+import time
+%matplotlib notebook
 
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
