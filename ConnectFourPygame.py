@@ -45,10 +45,10 @@ class button():
         # Call this method to draw the button on the screen
         if outline:
             pygame.draw.rect(win, outline, (self.x - 3, self.y -
-                             3, self.width + 6, self.height + 6), 0)
+                                            3, self.width + 6, self.height + 6), 0)
 
         pygame.draw.rect(win, self.color, (self.x, self.y,
-                         self.width, self.height), 0)
+                                           self.width, self.height), 0)
 
         if self.text != '':
             font = pygame.font.SysFont('comicsans', 80)
@@ -352,12 +352,12 @@ def process_data(data):
 def Detection(seq, std_thresh, diff_thresh, prom_threshold):
     std = np.std(seq)
     diff = np.max(seq) - np.min(seq)
-    peaks = len(scipy.signal.find_peaks(seq, prominence=prom_threshold)[0])
+    peaks = len(scipy.signal.find_peaks(seq)[0])
     maxval = np.argmax(seq)
     minval = np.argmin(seq)
     if peaks > 2:
         return 'fl'
-    elif std > std_thresh and diff > diff_thresh:
+    elif std > std_thresh:
         if maxval > minval:
             return 'L'
         else:
@@ -374,40 +374,27 @@ def calibrate(x):
     ser.timeout = inputBufferSize / 20000.0
     # this is the problem line on the mac
     # ser.set_buffer_size(rx_size = inputBufferSize)
-
-    total_time = 10.0  # time in seconds [[1 s = 20000 buffer size]]
-    N_loops = 20000.0 / inputBufferSize * total_time
-
     last_seq = np.empty(0)
     ccount = 0
     cstds = np.empty(0)
     cdiffs = np.empty(0)
-    data = read_arduino(ser, inputBufferSize)
-    data_temp = process_data(data)
-    data_temp = np.flip(data_temp)
-    a1 = []
-    z = 0
-    while z < len(data_temp):  # Taking rolling average for x points
-        a1.append(np.mean(data_temp[z:z + x]))
-        z += x
-
-    data_temp = np.array(a1)
-    combined = np.concatenate((last_seq, data_temp), axis=None)
-
-    while calibrating and b > 0:
+    cbest_diff = 0
+    buffer = 3
+    num_reads = 0
+    start = True
+    while True:
+        num_reads += 1
+        data = read_arduino(ser, inputBufferSize)
+        data_temp = process_data(data)
+        data_temp = np.flip(data_temp)
+        combined = np.concatenate((last_seq, data_temp), axis=None)
+        print(len(combined))
+        if num_reads < buffer:
+            continue
         if start:
-            print(len(data_temp))
-            arrs = np.split(data_temp, 5)
-            means = np.empty(0)
-            diffs = np.empty(0)
-            for ar in arrs:
-                means = np.append(means, np.mean(ar))
-                diffs = np.append(diffs, (np.max(ar) - np.min(ar)))
-            base_h = np.median(means)
             base_std = np.std(data_temp)
             if base_std > 5:
                 base_std = 5
-            base_diff = np.median(diffs)
             start = False
         else:
             c = 0
@@ -420,7 +407,6 @@ def calibrate(x):
                 cpeaks = len(scipy.signal.find_peaks(
                     interval, prominence=10)[0])
                 if cpeaks >= 3:
-                    calibrating = False
                     cpeaks = 0
                     cstds = np.flip(np.sort(cstds))
                     cdiffs = np.flip(np.sort(cdiffs))
@@ -460,12 +446,14 @@ def calibrate(x):
                     ccount += 1
 
                 c += 5
-    last_seq = data_temp
+        last_seq = data_temp
     print("DONE CAL")
-    return (last_seq, std_threshold, diff_threshold, prom_threshold)
+    return (std_threshold, diff_threshold, prom_threshold)
 
 
-def get_move(last_seq, x):
+def get_move(x):
+    inputBufferSize = 20002
+    ser.timeout = inputBufferSize / 20000.0
     game_input = 'NA'
     count = 0
     best_diff = 0
@@ -507,11 +495,11 @@ def get_move(last_seq, x):
                     game_input = actual
             if game_input != 'NA':
                 print(game_input)
+                return (game_input)
             # game_input is input to game here
             game_input = 'NA'
             previous = predicted
             d += 5
-    return (game_input, calibrating, b)
 
 
 def play_game():
@@ -522,9 +510,9 @@ def play_game():
     game_over = False
     turn = PLAYER
     moves = 0
-    calibrating = True
 
     x = 200
+    #last_seq, std_threshold, diff_threshold, prom_threshold = calibrate(x)
     game_input = 'NA'
     start = True
 
@@ -560,8 +548,7 @@ def play_game():
 
             while move == 'NA':
                 print(move)
-                move, calibrating, b = get_move(
-                    calibrating, b, x, game_input, start, last_seq, count, best_diff, ccount, cstds, cdiffs)
+                move = get_move(x)
 
             if move == 'fl':
                 print("trying to drop")
@@ -631,7 +618,7 @@ def play_game():
 
 
 baudrate = 230400
-cport = '/dev/cu.usbserial-DJ00E27E'  # set the correct port before you run it
+cport = 'COM3'  # set the correct port before you run it
 ser = ser.Serial(port=cport, baudrate=baudrate)
 
 

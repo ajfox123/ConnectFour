@@ -3,11 +3,12 @@ import numpy as np
 import scipy.signal
 import matplotlib.pyplot as plt
 
-f = pd.read_csv('Week_8/LRflutterx4_h2.txt', sep = ' ', header=None)
+f = pd.read_csv('Spikerbox/Week_8/LRflutterx4_h2.txt', sep=' ', header=None)
 
-data = f.iloc[:,1] - 509.9
+data = f.iloc[:, 1] - 509.9
 data = data.to_numpy()
 data = np.flip(data)
+
 
 def Detection(seq):
     std = np.std(seq)
@@ -25,6 +26,7 @@ def Detection(seq):
     else:
         return 'NA'
 
+
 l = len(data)
 last_seq = np.empty(0)
 
@@ -36,20 +38,20 @@ previous = 'NA'
 best_diff = 0
 best = 0
 
-#simulating live streaming conditions
+# simulating live streaming conditions
 while i < l:
-    if l-i < 10000:
-        data_temp = data[i:(l-1)]
+    if l - i < 10000:
+        data_temp = data[i:(l - 1)]
     else:
-        data_temp = data[i:(i+10000)]
+        data_temp = data[i:(i + 10000)]
 
-    combined = np.concatenate((last_seq, data_temp), axis = None)
+    combined = np.concatenate((last_seq, data_temp), axis=None)
 
     j = 0
     if len(combined) > 0:
         movement = len(combined) - 10000
         while movement - j > 0:
-            interval = combined[j:(j+10000)]
+            interval = combined[j:(j + 10000)]
             predicted = Detection(interval)
             range = np.max(interval) - np.min(interval)
 

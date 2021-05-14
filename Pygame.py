@@ -4,11 +4,6 @@ import time
 import pygame
 import math
 import pandas as pd
-import scipy.signal
-import matplotlib.pyplot as plt
-import serial as ser
-import time
-%matplotlib notebook
 
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
@@ -47,10 +42,10 @@ class button():
         # Call this method to draw the button on the screen
         if outline:
             pygame.draw.rect(win, outline, (self.x - 3, self.y -
-                             3, self.width + 6, self.height + 6), 0)
+                                            3, self.width + 6, self.height + 6), 0)
 
         pygame.draw.rect(win, self.color, (self.x, self.y,
-                         self.width, self.height), 0)
+                                           self.width, self.height), 0)
 
         if self.text != '':
             font = pygame.font.SysFont('comicsans', 80)
@@ -59,7 +54,6 @@ class button():
                             self.y + (self.height / 2 - text.get_height() / 2)))
 
     def isOver(self, curr):
-        # Pos is the mouse position or a tuple of (x,y) coordinates
         if curr == self:
             return True
         return False
@@ -362,16 +356,9 @@ def play_game():
 
         pygame.draw.circle(
             screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
-
-        turn_over = False
-
-        while not turn_over:
-
-            predicted = None
-
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    sys.exit()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                sys.exit()
 
             if event.type == pygame.KEYDOWN:
                 pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
@@ -392,15 +379,13 @@ def play_game():
                     if row is not None:
                         board.drop_piece(row, pcol, PLAYER_PIECE)
                         if board.utility(PLAYER_PIECE):
-                            label = myfont.render(
-                                "Player 1 wins!!", 1, RED)
+                            label = myfont.render("Player 1 wins!!", 1, RED)
                             screen.blit(label, (40, 10))
                             game_over = True
 
                         moves += 1
                         if moves == 42 and not board.utility(PLAYER_PIECE):
-                            label = myfont.render(
-                                "It's a draw...", 1, BLUE)
+                            label = myfont.render("It's a draw...", 1, BLUE)
                             screen.blit(label, (40, 10))
                             game_over = True
 
