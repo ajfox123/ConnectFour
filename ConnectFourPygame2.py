@@ -8,6 +8,10 @@ import serial as ser
 import scipy.signal
 import matplotlib.pyplot as plt
 
+baudrate = 230400
+cport = '/dev/cu.usbserial-DJ00E27E'  # set the correct port before you run it
+ser = ser.Serial(port=cport, baudrate=baudrate)
+
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -45,10 +49,10 @@ class button():
         # Call this method to draw the button on the screen
         if outline:
             pygame.draw.rect(win, outline, (self.x - 3, self.y -
-                             3, self.width + 6, self.height + 6), 0)
+                                            3, self.width + 6, self.height + 6), 0)
 
         pygame.draw.rect(win, self.color, (self.x, self.y,
-                         self.width, self.height), 0)
+                                           self.width, self.height), 0)
 
         if self.text != '':
             font = pygame.font.SysFont('comicsans', 80)
@@ -381,7 +385,7 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
         data = read_arduino(ser, inputBufferSize)
         data_temp = process_data(data)
         data_temp = np.flip(data_temp)
-        #print(len(data_temp))
+        # print(len(data_temp))
         a1 = []
         z = 0
         while z < len(data_temp):  # Taking rolling average for x points
@@ -393,7 +397,7 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
 
         if calibrating and started:
             if start:
-                arrs = np.split(data_temp, 5) #split first second of calibration into 5 arrays
+                arrs = np.split(data_temp, 5)  # split first second of calibration into 5 arrays
                 means = np.empty(0)
                 diffs = np.empty(0)
                 for ar in arrs:
@@ -496,13 +500,12 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
                             best_diff = 0
                             count = 0
                             return (move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
-                    #if game_input != 'NA':
+                    # if game_input != 'NA':
                     #    print(game_input)
                     # game_input is input to game here
                     d += 5
         last_seq = data_temp
         started = True
-
 
 
 def play_game():
@@ -515,7 +518,7 @@ def play_game():
     moves = 0
 
     move = 'NA'
-    started = False #becomes True after first second to get rid of noisy data
+    started = False  # becomes True after first second to get rid of noisy data
     calibrating = True
     start = True
     base_std = 0
@@ -562,12 +565,11 @@ def play_game():
         if turn == PLAYER:
             move = 'NA'
 
-
-            #print(move)
+            # print(move)
             move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff = get_move(started, calibrating,
-                         start, base_std, cstds, cdiffs, cbest, cbest_diff,
-                         ccount, std_threshold, diff_threshold, prom_threshold,
-                         last_seq, count, best, best_diff)
+                                                                                                                                                                                              start, base_std, cstds, cdiffs, cbest, cbest_diff,
+                                                                                                                                                                                              ccount, std_threshold, diff_threshold, prom_threshold,
+                                                                                                                                                                                              last_seq, count, best, best_diff)
 
             pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
             if move == 'fl':
@@ -600,7 +602,7 @@ def play_game():
                 print("moving right")
                 pcol += 1
             pygame.draw.circle(
-                    screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
+                screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -634,11 +636,6 @@ def play_game():
         if game_over:
             pygame.time.wait(1000)
             game_over_screen()
-
-
-baudrate = 230400
-cport = '/dev/cu.usbserial-DJ00E27E'  # set the correct port before you run it
-ser = ser.Serial(port=cport, baudrate=baudrate)
 
 
 def main():
