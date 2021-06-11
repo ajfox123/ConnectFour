@@ -1,2 +1,7 @@
 pygame 
 numpy
+Levenshtein
+catch22
+scipy
+matplotlib
+scikit-learn
