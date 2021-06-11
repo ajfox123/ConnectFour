@@ -8,6 +8,10 @@ import serial as ser
 import scipy.signal
 import matplotlib.pyplot as plt
 
+baudrate = 230400
+cport = '/dev/cu.usbserial-DJ00E27E'  # set the correct port before you run it
+ser = ser.Serial(port=cport, baudrate=baudrate)
+
 BLUE = (0, 0, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -61,6 +65,8 @@ class button():
         if curr == self:
             return True
         return False
+
+# BOARD LOGIC
 
 
 class Board():
@@ -197,6 +203,8 @@ class Board():
             return self.score_r - self.score_y
         return self.score_y - self.score_r
 
+# GAME LOGIC
+
 
 class ConnectFour():
     def __init__(self, turn, depth):
@@ -220,6 +228,8 @@ class ConnectFour():
         if last_row[col] == '.':
             return True
         return False
+
+    # AI LOGIC
 
     def alpha_beta(self, d, board, a, b, first_player):
         valid_locations = self.get_valid_locations(board.board)
@@ -348,16 +358,18 @@ def process_data(data):
         i = i + 1
     return result
 
+# Classifies a signal interval
+
 
 def Detection(seq, std_thresh, diff_thresh, prom_threshold):
     std = np.std(seq)
     diff = np.max(seq) - np.min(seq)
-    peaks = len(scipy.signal.find_peaks(seq)[0])
+    peaks = len(scipy.signal.find_peaks(seq, prominence=prom_threshold)[0])
     maxval = np.argmax(seq)
     minval = np.argmin(seq)
     if peaks > 2:
         return 'fl'
-    elif std > std_thresh:
+    elif std > std_thresh and diff > diff_thresh:
         if maxval > minval:
             return 'L'
         else:
@@ -365,141 +377,138 @@ def Detection(seq, std_thresh, diff_thresh, prom_threshold):
     else:
         return 'NA'
 
+# Reads the Spiker Box data until a move is detected
 
-def calibrate(x):
-    print('calibrating')
+
+def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff):
     # take continuous data stream
-    inputBufferSize = 20002  # keep betweein 2000-20000
-    # set read timeout, 20000 is one second
+    inputBufferSize = 20002
     ser.timeout = inputBufferSize / 20000.0
-    # this is the problem line on the mac
-    # ser.set_buffer_size(rx_size = inputBufferSize)
-    last_seq = np.empty(0)
-    ccount = 0
-    cstds = np.empty(0)
-    cdiffs = np.empty(0)
-    cbest_diff = 0
-    buffer = 3
-    num_reads = 0
-    start = True
+
+    total_time = 10.0  # time in seconds [[1 s = 20000 buffer size]]
+    N_loops = 20000.0 / inputBufferSize * total_time
+
     while True:
-        num_reads += 1
         data = read_arduino(ser, inputBufferSize)
         data_temp = process_data(data)
         data_temp = np.flip(data_temp)
+        a1 = []
+        z = 0
+        while z < len(data_temp):  # Taking rolling average for x points
+            a1.append(np.mean(data_temp[z:z + 200]))
+            z += 200
+
+        data_temp = np.array(a1)
         combined = np.concatenate((last_seq, data_temp), axis=None)
-        print(len(combined))
-        if num_reads < buffer:
-            continue
-        if start:
-            base_std = np.std(data_temp)
-            if base_std > 5:
-                base_std = 5
-            start = False
-        else:
-            c = 0
-            movement = len(combined) - 50
-            while movement - c > 0:
-                interval = combined[c:(c + 50)]
-                cstd = np.std(interval)
-                cdiff = np.max(interval) - np.min(interval)
-                ch = np.max(interval)
-                cpeaks = len(scipy.signal.find_peaks(
-                    interval, prominence=10)[0])
-                if cpeaks >= 3:
-                    cpeaks = 0
-                    cstds = np.flip(np.sort(cstds))
-                    cdiffs = np.flip(np.sort(cdiffs))
-                    fstd = cstd
-                    fdiff = cdiff
-                    fch = ch
 
-                    max_std = cstds[0]
-                    if len(cstds) > 3:
-                        low_std = cstds[2]
-                    elif len(cstds) == 1:
-                        low_std = max_std
+        if calibrating and started:
+            if start:
+                # split first second of calibration into 5 arrays
+                arrs = np.split(data_temp, 5)
+                means = np.empty(0)
+                diffs = np.empty(0)
+                for ar in arrs:
+                    means = np.append(means, np.mean(ar))
+                    diffs = np.append(diffs, (np.max(ar) - np.min(ar)))
+                base_std = np.std(data_temp)
+                if base_std > 5:
+                    base_std = 5
+                start = False
+            else:
+                c = 0
+                movement = len(combined) - 50
+                while movement - c > 0:
+                    interval = combined[c:(c + 50)]
+                    cstd = np.std(interval)
+                    cdiff = np.max(interval) - np.min(interval)
+                    ch = np.max(interval)
+                    cpeaks = len(scipy.signal.find_peaks(
+                        interval, prominence=10)[0])
+                    if cpeaks >= 3:
+                        calibrating = False
+                        print('calibration done!')
+                        cpeaks = 0
+                        cstds = np.flip(np.sort(cstds))
+                        cdiffs = np.flip(np.sort(cdiffs))
+                        fstd = cstd
+                        fdiff = cdiff
+                        fch = ch
+
+                        max_std = cstds[0]
+                        if len(cstds) > 3:
+                            low_std = cstds[2]
+                        elif len(cstds) == 1:
+                            low_std = max_std
+                        else:
+                            low_std = cstds[1]
+                        std_threshold = low_std / 2
+
+                        max_diff = cdiffs[0]
+                        if len(cdiffs) > 3:
+                            low_diff = cdiffs[2]
+                        elif len(cdiffs) == 1:
+                            low_diff = max_diff
+                        else:
+                            low_diff = cdiffs[1]
+                        diff_threshold = low_diff / 2
+
+                        prom_threshold = 10
+                        break
+
+                    elif cstd > 2 * base_std and ccount > 4:
+                        if cdiff >= cbest_diff:
+                            cbest_diff = cdiff
+                            cbest = interval
+                        elif (cbest_diff - cdiff) > 10:
+                            cstds = np.append(cstds, np.std(cbest))
+                            cdiffs = np.append(cdiffs, cbest_diff)
+                            cbest = 0
+                            cbest_diff = 0
+                            ccount = 0
                     else:
-                        low_std = cstds[1]
-                    std_threshold = low_std / 2
+                        ccount += 1
 
-                    max_diff = cdiffs[0]
-                    if len(cdiffs) > 3:
-                        low_diff = cdiffs[2]
-                    elif len(cdiffs) == 1:
-                        low_diff = max_diff
-                    else:
-                        low_diff = cdiffs[1]
-                    diff_threshold = low_diff / 2
+                    c += 5
+        elif started:
+            d = 0
+            if len(combined) > 50:
+                movement = len(combined) - 50
+                while movement - d > 0:
+                    interval = combined[d:(d + 50)]
+                    predicted = Detection(
+                        interval, std_threshold, diff_threshold, prom_threshold)
+                    ran = np.max(interval) - np.min(interval)
+                    sdi = np.std(interval)
 
-                    prom_threshold = 10
-                    break
+                    if predicted == 'NA':
+                        count += 1
 
-                elif cstd > 2 * base_std and ccount > 4:
-                    if cdiff >= cbest_diff:
-                        cbest_diff = cdiff
-                        cbest = interval
-                    elif (cbest_diff - cdiff) > 10:
-                        cstds = np.append(cstds, np.std(cbest))
-                        cdiffs = np.append(cdiffs, cbest_diff)
-                else:
-                    ccount += 1
+                    elif predicted == 'fl' and count > 5:
+                        count = 0
+                        best = 0
+                        best_diff = 0
+                        # predicted is input to game here
+                        move = predicted
+                        return (move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
 
-                c += 5
+                    elif (sdi > std_threshold or ran > diff_threshold) and count > 5:
+                        if ran >= best_diff:
+                            best_diff = ran
+                            best = interval
+                        elif (best_diff - ran) > 10:
+                            actual = Detection(
+                                best, std_threshold, diff_threshold, prom_threshold)
+                            move = actual
+                            # actual is input to game here
+                            best = 0
+                            best_diff = 0
+                            count = 0
+                            return (move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
+                    d += 5
         last_seq = data_temp
-    print("DONE CAL")
-    return (std_threshold, diff_threshold, prom_threshold)
+        started = True
 
-
-def get_move(x):
-    inputBufferSize = 20002
-    ser.timeout = inputBufferSize / 20000.0
-    game_input = 'NA'
-    count = 0
-    best_diff = 0
-    data = read_arduino(ser, inputBufferSize)
-    data_temp = process_data(data)
-    data_temp = np.flip(data_temp)
-    a1 = []
-    z = 0
-    while z < len(data_temp):  # Taking rolling average for x points
-        a1.append(np.mean(data_temp[z:z + x]))
-        z += x
-
-    data_temp = np.array(a1)
-    combined = np.concatenate((last_seq, data_temp), axis=None)
-
-    d = 0
-    if len(combined) > 50:
-        movement = len(combined) - 50
-        while movement - d > 0:
-            interval = combined[d:(d + 50)]
-            predicted = Detection(
-                interval, std_threshold, diff_threshold, prom_threshold)
-            ran = np.max(interval) - np.min(interval)
-            sdi = np.std(interval)
-
-            if predicted == 'NA':
-                count += 1
-
-            elif predicted == 'fl' and count > 5:
-                game_input = predicted
-
-            elif (sdi > std_threshold or ran > diff_threshold) and count > 5:
-                if ran >= best_diff:
-                    best_diff = ran
-                    best = interval
-                elif (best_diff - ran) > 10:
-                    actual = Detection(
-                        best, std_threshold, diff_threshold, prom_threshold)
-                    game_input = actual
-            if game_input != 'NA':
-                print(game_input)
-                return (game_input)
-            # game_input is input to game here
-            game_input = 'NA'
-            previous = predicted
-            d += 5
+# GAME LOOP
 
 
 def play_game():
@@ -511,10 +520,23 @@ def play_game():
     turn = PLAYER
     moves = 0
 
-    x = 200
-    #last_seq, std_threshold, diff_threshold, prom_threshold = calibrate(x)
-    game_input = 'NA'
+    move = 'NA'
+    started = False  # becomes True after first second to get rid of noisy data
+    calibrating = True
     start = True
+    base_std = 0
+    cstds = np.empty(0)
+    cdiffs = np.empty(0)
+    cbest = 0
+    cbest_diff = 0
+    ccount = 0
+    std_threshold = 0
+    diff_threshold = 0
+    prom_threshold = 10
+    last_seq = np.empty(0)
+    count = 0
+    best = 0
+    best_diff = 0
 
     def draw_board(board):
         for c in range(7):
@@ -546,13 +568,15 @@ def play_game():
         if turn == PLAYER:
             move = 'NA'
 
-            while move == 'NA':
-                print(move)
-                move = get_move(x)
+            # print(move)
+            move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff = get_move(started, calibrating,
+                                                                                                                                                                                              start, base_std, cstds, cdiffs, cbest, cbest_diff,
+                                                                                                                                                                                              ccount, std_threshold, diff_threshold, prom_threshold,
+                                                                                                                                                                                              last_seq, count, best, best_diff)
 
+            pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
             if move == 'fl':
                 print("trying to drop")
-                pygame.draw.rect(screen, BLACK, (0, 0, width, squaresize))
                 row = game.get_next_open_row(board.board, pcol)
                 if row is not None:
                     board.drop_piece(row, pcol, PLAYER_PIECE)
@@ -580,8 +604,8 @@ def play_game():
             elif move == 'R' and pcol != 6:
                 print("moving right")
                 pcol += 1
-                pygame.draw.circle(
-                    screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
+            pygame.draw.circle(
+                screen, RED, ((pcol + 0.5) * squaresize, int(squaresize / 2)), RADIUS)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -616,10 +640,7 @@ def play_game():
             pygame.time.wait(1000)
             game_over_screen()
 
-
-baudrate = 230400
-cport = 'COM3'  # set the correct port before you run it
-ser = ser.Serial(port=cport, baudrate=baudrate)
+# STARTING LOOP
 
 
 def main():
