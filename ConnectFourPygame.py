@@ -9,7 +9,7 @@ import scipy.signal
 import matplotlib.pyplot as plt
 
 baudrate = 230400
-cport = '/dev/cu.usbserial-DJ00E27E'  # set the correct port before you run it
+cport = '/dev/cu.usbmodem144101'  # set the correct port before you run it
 ser = ser.Serial(port=cport, baudrate=baudrate)
 
 BLUE = (0, 0, 255)
@@ -49,10 +49,10 @@ class button():
         # Call this method to draw the button on the screen
         if outline:
             pygame.draw.rect(win, outline, (self.x - 3, self.y -
-                                            3, self.width + 6, self.height + 6), 0)
+                             3, self.width + 6, self.height + 6), 0)
 
         pygame.draw.rect(win, self.color, (self.x, self.y,
-                                           self.width, self.height), 0)
+                         self.width, self.height), 0)
 
         if self.text != '':
             font = pygame.font.SysFont('comicsans', 80)
@@ -66,7 +66,7 @@ class button():
             return True
         return False
 
-# BOARD LOGIC
+# BAORD LOGIC
 
 
 class Board():
@@ -230,7 +230,6 @@ class ConnectFour():
         return False
 
     # AI LOGIC
-
     def alpha_beta(self, d, board, a, b, first_player):
         valid_locations = self.get_valid_locations(board.board)
         no_move = len(valid_locations) == 0
@@ -337,7 +336,6 @@ def game_over_screen():
 
 
 def read_arduino(ser, inputBufferSize):
-    #    data = ser.readline(inputBufferSize)
     data = ser.read(inputBufferSize)
     out = [(int(data[i])) for i in range(0, len(data))]
     return out
@@ -357,6 +355,7 @@ def process_data(data):
             result = np.append(result, intout)
         i = i + 1
     return result
+
 
 # Classifies a signal interval
 
@@ -384,9 +383,9 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
     # take continuous data stream
     inputBufferSize = 20002
     ser.timeout = inputBufferSize / 20000.0
-
-    total_time = 10.0  # time in seconds [[1 s = 20000 buffer size]]
+    total_time = 10.0
     N_loops = 20000.0 / inputBufferSize * total_time
+    first_seconds = 0
 
     while True:
         data = read_arduino(ser, inputBufferSize)
@@ -410,9 +409,11 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
                 for ar in arrs:
                     means = np.append(means, np.mean(ar))
                     diffs = np.append(diffs, (np.max(ar) - np.min(ar)))
+                #base_h = np.median(means)
                 base_std = np.std(data_temp)
                 if base_std > 5:
                     base_std = 5
+                #base_diff = np.median(diffs)
                 start = False
             else:
                 c = 0
@@ -424,7 +425,8 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
                     ch = np.max(interval)
                     cpeaks = len(scipy.signal.find_peaks(
                         interval, prominence=10)[0])
-                    if cpeaks >= 3:
+                    print(cpeaks)
+                    if cpeaks >= 3 and len(cstds) > 0:
                         calibrating = False
                         print('calibration done!')
                         cpeaks = 0
@@ -453,7 +455,7 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
                         diff_threshold = low_diff / 2
 
                         prom_threshold = 10
-                        break
+                        return (move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
 
                     elif cstd > 2 * base_std and ccount > 4:
                         if cdiff >= cbest_diff:
@@ -487,7 +489,6 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
                         count = 0
                         best = 0
                         best_diff = 0
-                        # predicted is input to game here
                         move = predicted
                         return (move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
 
@@ -499,19 +500,21 @@ def get_move(started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_
                             actual = Detection(
                                 best, std_threshold, diff_threshold, prom_threshold)
                             move = actual
-                            # actual is input to game here
                             best = 0
                             best_diff = 0
                             count = 0
                             return (move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
                     d += 5
         last_seq = data_temp
-        started = True
+        if first_seconds > 5:
+            started = True
+        first_seconds += 1
 
 # GAME LOOP
 
 
 def play_game():
+    myfont = pygame.font.SysFont("monospace", 75)
     screen.fill(BLACK)
     RADIUS = int(squaresize / 2 - 5)
     board = Board(board_string)
@@ -521,7 +524,7 @@ def play_game():
     moves = 0
 
     move = 'NA'
-    started = False  # becomes True after first second to get rid of noisy data
+    started = False  # becomes True after first 5 seconds to get rid of noisy data
     calibrating = True
     start = True
     base_std = 0
@@ -555,9 +558,23 @@ def play_game():
                                                         height - int(r * squaresize + squaresize / 2)), RADIUS)
         pygame.display.update()
 
+    if calibrating:
+        nlabel = myfont.render("Calibrating", 1, BLUE)
+        print("showing calibration screen")
+        text_rect = nlabel.get_rect(center=(width / 2, height / 2))
+        screen.blit(nlabel, text_rect)
+        pygame.display.update()
+        move, started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff = get_move(
+            started, calibrating, start, base_std, cstds, cdiffs, cbest, cbest_diff, ccount, std_threshold, diff_threshold, prom_threshold, last_seq, count, best, best_diff)
+        print("finishing calibration screen")
+        screen.fill(BLACK)
+        nlabel = myfont.render("Done", 1, BLUE)
+        text_rect = nlabel.get_rect(center=(width / 2, height / 2))
+        screen.blit(nlabel, text_rect)
+        pygame.display.update()
+
     draw_board(board.board)
 
-    myfont = pygame.font.SysFont("monospace", 75)
     pcol = game.get_valid_locations(board.board)[0]
     while not game_over:
         pygame.draw.circle(
